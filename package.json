@@ -1,0 +1,28 @@
+{
+  "name": "medcare",
+  "private": true,
+  "version": "1.0.0",
+  "description": "MedCare Twin — physiology-based digital twin for medicine simulation, training and drug development",
+  "type": "module",
+  "workspaces": [
+    "packages/engine",
+    "server",
+    "web"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "build": "npm run build -w packages/engine && npm run build -w web && npm run build -w server",
+    "dev": "npm run build -w packages/engine && node --run dev:all",
+    "dev:all": "npm run dev -w server & npm run dev -w web",
+    "start": "npm run start -w server",
+    "test": "npm run test -w packages/engine && npm run test -w server",
+    "typecheck": "npm run typecheck -w packages/engine && npm run typecheck -w server && npm run typecheck -w web",
+    "seed": "npm run seed -w server"
+  },
+  "devDependencies": {
+    "typescript": "~5.9",
+    "vitest": "^3.2.7"
+  }
+}
