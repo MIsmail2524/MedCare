@@ -165,12 +165,20 @@ export function analyzeHistory(patient: Patient, now: Date = new Date()): Histor
         const floor = (thLow ?? m.cmax) * 0.05;
         const daysToWashout = val > floor ? (t12 * Math.log2(val / floor)) / 24 : 0;
         residual.push({ drugId: id, value: val, unit: d.display.unit, pctOfTherapeuticLow: thLow ? (100 * val) / thLow : null, daysToWashout });
-        if (thLow && val >= 0.25 * thLow) {
+        const ongoing = patient.medicationHistory.some((c) => c.drugId === id && new Date(c.end).getTime() >= now.getTime() - 86400000);
+        if (ongoing) {
+          lasting.push({
+            source: d.name,
+            kind: 'residual',
+            severity: 'info',
+            text: `Currently taking — present level ${val.toPrecision(2)} ${d.display.unit}${thLow ? ` (${((100 * val) / thLow).toFixed(0)}% of therapeutic low)` : ''}. Future simulations start from this state.`,
+          });
+        } else if (thLow && val >= 0.25 * thLow) {
           lasting.push({
             source: d.name,
             kind: 'residual',
             severity: d.inhibits.length || d.induces.length ? 'major' : 'moderate',
-            text: `Residual level ${val.toPrecision(2)} ${d.display.unit} (${((100 * val) / thLow).toFixed(0)}% of therapeutic low) — still pharmacologically active; ~${daysToWashout.toFixed(0)} days to wash out.`,
+            text: `Residual level ${val.toPrecision(2)} ${d.display.unit} (${((100 * val) / thLow).toFixed(0)}% of therapeutic low) — still pharmacologically active; ≈ ${daysToWashout.toFixed(0)} days to fall below 5% of the therapeutic level.`,
           });
         }
       }
