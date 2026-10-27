@@ -22,7 +22,7 @@
     "seed": "npm run seed -w server"
   },
   "devDependencies": {
-    "typescript": "~5.9",
+    "typescript": "~7.0",
     "vitest": "^5.0.5"
   }
 }
