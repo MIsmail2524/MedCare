@@ -1,0 +1,20 @@
+# One-click deploy on Render (https://render.com/docs/blueprint-spec)
+services:
+  - type: web
+    name: medcare-twin
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_SECRET
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: 'true'
+      - key: TRUST_PROXY
+        value: '1'
+      - key: DATABASE_PATH
+        value: /data/medcare.db
+    disk:
+      name: medcare-data
+      mountPath: /data
+      sizeGB: 1
