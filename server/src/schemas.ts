@@ -4,7 +4,7 @@ import { DRUG_MAP, PROCEDURE_MAP } from '@medcare/engine';
 const id = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
 const text = (max: number) => z.string().trim().max(max);
 const isoDate = z.string().max(40).refine((s) => !Number.isNaN(Date.parse(s)), 'Invalid date');
-const drugId = z.string().max(40).refine((s) => s in DRUG_MAP, 'Unknown drug');
+const drugId = z.string().max(40).refine((s) => Object.hasOwn(DRUG_MAP, s), 'Unknown drug');
 const phenotype = z.enum(['PM', 'IM', 'NM', 'RM', 'UM']);
 const route = z.enum(['po', 'iv_bolus', 'iv_infusion', 'sc']);
 const doseUnit = z.enum(['mg', 'mg/kg', 'mg/m2']);
@@ -70,7 +70,7 @@ export const patientSchema = z.object({
   conditions: z.array(z.object({ id, name: text(120).min(1), since: isoDate.optional(), notes: text(500).optional() })).max(100),
   allergies: z.array(text(60)).max(50),
   procedures: z
-    .array(z.object({ id, type: z.string().max(40).refine((s) => s in PROCEDURE_MAP, 'Unknown procedure'), date: isoDate, notes: text(500).optional() }))
+    .array(z.object({ id, type: z.string().max(40).refine((s) => Object.hasOwn(PROCEDURE_MAP, s), 'Unknown procedure'), date: isoDate, notes: text(500).optional() }))
     .max(100),
   medicationHistory: z
     .array(

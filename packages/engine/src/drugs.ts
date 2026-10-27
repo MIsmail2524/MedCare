@@ -1137,12 +1137,16 @@ export const DRUGS: Drug[] = [
   }),
 ];
 
-export const DRUG_MAP: Record<string, Drug> = Object.fromEntries(DRUGS.map((d) => [d.id, d]));
+// Null-prototype map so keys such as "__proto__" or "constructor" never resolve to Object.prototype members.
+export const DRUG_MAP: Record<string, Drug> = Object.assign(Object.create(null), Object.fromEntries(DRUGS.map((d) => [d.id, d])));
+
+export function isDrugId(id: unknown): id is string {
+  return typeof id === 'string' && Object.hasOwn(DRUG_MAP, id);
+}
 
 export function getDrug(id: string): Drug {
-  const d = DRUG_MAP[id];
-  if (!d) throw new Error(`Unknown drug: ${id}`);
-  return d;
+  if (!isDrugId(id)) throw new Error(`Unknown drug: ${String(id).slice(0, 40)}`);
+  return DRUG_MAP[id];
 }
 
 export const DRUG_CATEGORIES = Array.from(new Set(DRUGS.map((d) => d.category))).sort();

@@ -221,6 +221,20 @@ describe('input validation & injection', () => {
     expect(r.status).toBe(400);
   });
 
+  it('rejects prototype-chain keys as drug or procedure ids', async () => {
+    const c = await registered('protokeys@example.com');
+    for (const drugId of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
+      const r = await send(c, 'post', '/api/simulate', {
+        patient: defaultPatient(),
+        regimens: [{ id: 'r1', drugId, dose: 10, unit: 'mg', intervalH: 24, route: 'po', startH: 0, doses: 1 }],
+      });
+      expect(r.status).toBe(400);
+    }
+    const t = twin();
+    (t.data as { procedures: unknown[] }).procedures = [{ id: 'p1', type: 'constructor', date: '2024-01-01' }];
+    expect((await send(c, 'post', '/api/twins', t)).status).toBe(400);
+  });
+
   it('stores script payloads inert as data (rendered escaped by the client)', async () => {
     const c = await registered('xss@example.com');
     const r = await send(c, 'post', '/api/twins', twin('<img src=x onerror=alert(1)>'));

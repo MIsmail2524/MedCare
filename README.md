@@ -78,7 +78,7 @@ Requirements: Node.js ≥ 22.13.
 ```bash
 npm ci
 npm run build          # engine → web → server
-npm test               # 54 engine + API/security tests
+npm test               # 56 engine + API/security tests
 npm start              # http://localhost:8080
 ```
 

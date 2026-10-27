@@ -112,7 +112,7 @@ export const PROCEDURES: ProcedureDef[] = [
   },
 ];
 
-export const PROCEDURE_MAP = Object.fromEntries(PROCEDURES.map((p) => [p.id, p]));
+export const PROCEDURE_MAP: Record<string, ProcedureDef> = Object.assign(Object.create(null), Object.fromEntries(PROCEDURES.map((p) => [p.id, p])));
 
 const CHILD_PUGH_FACTOR = { none: 1, A: 0.8, B: 0.55, C: 0.35 } as const;
 

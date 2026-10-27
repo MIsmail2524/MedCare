@@ -166,7 +166,7 @@ export function generatePopulation(spec: PopulationSpec, drugIds: string[]): Vir
       },
       vkorc1: r.pick(freq.VKORC1),
     });
-    const etas: Record<string, Eta> = {};
+    const etas: Record<string, Eta> = Object.create(null);
     for (const id of drugIds) {
       const iiv = getDrug(id).pk.iiv ?? { CL: 0.3, V: 0.2, ka: 0.4 };
       // CV → log-normal SD: ω = sqrt(ln(1+CV²))

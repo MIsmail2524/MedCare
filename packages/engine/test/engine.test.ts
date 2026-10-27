@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   analyzeHistory, bayesianEstimate, ckdEpi2021, cockcroftGault, DRUGS, defaultPatient, derivePhysiology, evaluateAlerts,
   firstInHuman, EXAMPLE_COMPOUND, makeRegimen, marsh, minto, nelderMead, predictBIS, recommendDose, runTrial, DEFAULT_POPULATION,
-  schnider, simulate, tciStep, scoreCase, TRAINING_CASES, assessDruglikeness, ascendingDoseStudy,
+  schnider, simulate, tciStep, scoreCase, TRAINING_CASES, assessDruglikeness, ascendingDoseStudy, getDrug, isDrugId,
 } from '../src/index.js';
 
 const ref = defaultPatient();
@@ -176,6 +176,15 @@ describe('drug discovery', () => {
     const sad = ascendingDoseStudy(EXAMPLE_COMPOUND, fih, [100], false)[0];
     const mad = ascendingDoseStudy(EXAMPLE_COMPOUND, fih, [100], true)[0];
     expect(mad.cmax).toBeGreaterThan(sad.cmax);
+  });
+});
+
+describe('lookups', () => {
+  it('does not resolve prototype keys as drugs', () => {
+    expect(() => getDrug('constructor')).toThrow();
+    expect(() => getDrug('__proto__')).toThrow();
+    expect(isDrugId('warfarin')).toBe(true);
+    expect(isDrugId('toString')).toBe(false);
   });
 });
 

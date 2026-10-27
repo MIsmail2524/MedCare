@@ -173,6 +173,7 @@ export function dataRouter(db: DB) {
   r.post('/training/attempts', requireAuth, (req, res) => {
     const body = parse(attemptSchema, req.body);
     if (!TRAINING_CASES.some((c) => c.id === body.caseId)) throw new HttpError(400, 'Unknown case');
+    for (const k of Object.keys(body.answers)) if (!/^q\d{1,2}$/.test(k)) throw new HttpError(400, 'Invalid answer key');
     const result = scoreCase(body.caseId, body.answers);
     const id = randomUUID();
     db.prepare('INSERT INTO training_attempts (id, user_id, case_id, score, total, answers, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
