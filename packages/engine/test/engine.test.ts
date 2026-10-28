@@ -209,3 +209,62 @@ describe('history & training', () => {
     expect(scoreCase(c.id, answers).score).toBe(c.questions.length);
   });
 });
+
+describe('digital-twin journey, side effects and learning', () => {
+  it('conserves mass across the drug journey', async () => {
+    const { simulate: sim, makeRegimen: mk, defaultPatient: dp } = await import('../src/index.js');
+    const r = sim({ patient: dp(), regimens: [mk('acetaminophen', { doses: 1 })], durationH: 24 });
+    const j = r.series.acetaminophen.journey!;
+    const k = j.gut.length - 1;
+    const total = j.gut[k] + j.plasma[k] + j.tissue[k] + j.firstPass[k] + j.metabolised[k] + j.excreted[k];
+    expect(total / j.dosed[k]).toBeGreaterThan(0.98);
+    expect(total / j.dosed[k]).toBeLessThan(1.02);
+    expect(j.firstPass[k]).toBeGreaterThan(50); // F = 0.88
+  });
+
+  it('predicts more nephrotoxicity in renal impairment and learns from outcomes', async () => {
+    const E = await import('../src/index.js');
+    const regs = [E.makeRegimen('vancomycin', { doses: 8 })];
+    const ref = E.defaultPatient();
+    const ckd = E.defaultPatient({ scr: 2.5, age: 75 });
+    const kid = (p: typeof ref, m = E.defaultAEModel()) => E.predictSideEffects(E.simulate({ patient: p, regimens: regs }), p, m).find((x) => x.drugId === 'vancomycin' && x.organ === 'kidneys')?.probability ?? 0;
+    expect(kid(ckd)).toBeGreaterThan(kid(ref) + 0.3);
+    // Reported AKI in normal-function patients should raise the learned kidney risk.
+    const sim = E.simulate({ patient: ref, regimens: regs });
+    let model = E.defaultAEModel();
+    for (let i = 0; i < 20; i++) model = E.updateAEModel(model, E.samplesFromOutcome(sim, ref, 'vancomycin', [{ organ: 'kidneys', occurred: true }]));
+    expect(kid(ref, model)).toBeGreaterThan(kid(ref));
+    expect(model.samples.kidneys).toBeGreaterThanOrEqual(20);
+  });
+
+  it('flags HLA-B*15:02 skin reactions as idiosyncratic risk', async () => {
+    const E = await import('../src/index.js');
+    const p = E.defaultPatient({ hla: { B1502: true, B5701: false, B5801: false } });
+    const preds = E.predictSideEffects(E.simulate({ patient: p, regimens: [E.makeRegimen('carbamazepine', { doses: 14 })] }), p);
+    const skin = preds.find((x) => x.organ === 'skin')!;
+    const blood = preds.find((x) => x.organ === 'blood');
+    expect(skin.probability).toBeGreaterThan(0.4);
+    expect(blood?.probability ?? 0).toBeLessThan(0.2);
+  });
+
+  it('pooled Bayesian estimates shift future priors with shrinkage', async () => {
+    const E = await import('../src/index.js');
+    let m = E.emptyLearnedModel();
+    for (let i = 0; i < 5; i++) m = { ...m, priors: { ...m.priors, vancomycin: E.updatePrior(m.priors.vancomycin, { CL: Math.log(0.6), V: 0, ka: 0 }) } };
+    const eta = E.learnedEta(m, 'vancomycin')!;
+    expect(Math.exp(eta.CL)).toBeGreaterThan(0.6); // shrunk toward 1
+    expect(Math.exp(eta.CL)).toBeLessThan(0.85);
+  });
+
+  it('Q-learning dosing policy outperforms fixed standard dosing', async () => {
+    const E = await import('../src/index.js');
+    const policy = E.trainDosingPolicy('vancomycin', null, { episodes: 500 });
+    const ev = E.evaluatePolicy(policy, 50);
+    expect(ev.policy.meanReward).toBeGreaterThan(ev.standard.meanReward);
+    expect(ev.policy.toxic).toBeLessThanOrEqual(ev.standard.toxic);
+    const rec = E.recommendFromPolicy(policy, E.defaultPatient({ scr: 2.5, age: 78 }), 'none');
+    expect(rec.best.multiplier).toBeLessThan(1); // reduce dose in severe renal impairment
+    const reinforced = E.reinforcePolicy(policy, E.defaultPatient(), 'none', 1, 'toxic');
+    expect(reinforced.realUpdates).toBe(1);
+  }, 30000);
+});

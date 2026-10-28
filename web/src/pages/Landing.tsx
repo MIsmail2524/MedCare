@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Activity, Beaker, Dna, FlaskConical, GraduationCap, HeartPulse, History, Lock, Network, Sigma, Syringe, Users, ArrowRight, CheckCircle2,
+  Activity, Beaker, BrainCircuit, Dna, FlaskConical, GraduationCap, HeartPulse, History, Lock, Network, Sigma, Syringe, Users, ArrowRight, CheckCircle2,
 } from 'lucide-react';
 import { DRUGS, defaultPatient, makeRegimen, simulate } from '@medcare/engine';
 import { useAuth } from '../lib/auth';
@@ -9,6 +9,8 @@ import { TimeChart } from '../components/charts';
 import { fmt } from '../lib/format';
 
 const FEATURES = [
+  { icon: HeartPulse, title: '3D body digital twin', body: 'Give a medicine and watch it travel through a holographic human body — absorption, first-pass, circulation, tissues, metabolism, excretion — with organs lighting up and side effects appearing where they happen.' },
+  { icon: BrainCircuit, title: 'Learns from every patient', body: 'Recorded real outcomes refine pharmacokinetic priors and organ side-effect models, and reinforce a reinforcement-learning dosing agent for future patients.' },
   { icon: Users, title: 'Patient digital twins', body: 'Age, size, renal & hepatic function, pregnancy, genotype (CYP2D6/2C19/2C9/3A5, VKORC1, HLA), conditions and allergies — all feeding validated physiological equations.' },
   { icon: Activity, title: 'Multi-drug PK/PD simulator', body: 'Concentration–time, effect-site response, QTc and organ-level load for up to six concurrent medicines, with dynamic enzyme inhibition and induction.' },
   { icon: History, title: 'Retrospective analysis', body: 'Reconstructs what past medicines and surgeries already did: residual levels, enzyme carry-over, cumulative cardiotoxic or nephrotoxic dose and altered absorption.' },

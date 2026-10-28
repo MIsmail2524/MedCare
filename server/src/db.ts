@@ -78,6 +78,21 @@ const MIGRATIONS: string[] = [
      created_at INTEGER NOT NULL
    )`,
   `CREATE INDEX IF NOT EXISTS idx_audit_time ON audit_log(created_at)`,
+  `CREATE TABLE IF NOT EXISTS outcomes (
+     id TEXT PRIMARY KEY,
+     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     twin_id TEXT,
+     drug_id TEXT NOT NULL,
+     data TEXT NOT NULL,
+     learned TEXT NOT NULL,
+     created_at INTEGER NOT NULL
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_outcomes_user ON outcomes(user_id)`,
+  `CREATE TABLE IF NOT EXISTS learned_models (
+     user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+     data TEXT NOT NULL,
+     updated_at INTEGER NOT NULL
+   )`,
 ];
 
 export function openDb(path: string): DB {

@@ -87,10 +87,28 @@ export interface DrugMetrics {
   intervalH: number;
 }
 
+export interface DrugJourney {
+  /** Amount (mg) still in the GI tract / SC depot. */
+  gut: number[];
+  /** Amount (mg) circulating in plasma (≈ 0.043 L/kg plasma volume). */
+  plasma: number[];
+  /** Amount (mg) distributed into tissues and organs. */
+  tissue: number[];
+  /** Cumulative amount (mg) lost to gut-wall/hepatic first-pass extraction. */
+  firstPass: number[];
+  /** Cumulative amount (mg) metabolised (hepatic / non-renal). */
+  metabolised: number[];
+  /** Cumulative amount (mg) excreted unchanged by the kidneys. */
+  excreted: number[];
+  /** Cumulative oral/SC dose administered (mg, before bioavailability). */
+  dosed: number[];
+}
+
 export interface DrugSeries {
   conc: number[];
   active?: number[];
   effect?: number[];
+  journey?: DrugJourney;
 }
 
 export interface SimulationResult {
@@ -341,16 +359,20 @@ export function simulate(input: SimulationInput): SimulationResult {
     }
   }
 
-  function clearanceAt(i: number): number {
-    const p = params[i];
-    const sh = p.shares;
+  function renalClearanceAt(i: number): number {
+    const sh = params[i].shares;
     const pgp = modulation[pwIndex.Pgp];
     let renal = sh.renal * (1 - sh.renalPgp + sh.renalPgp * pgp);
     for (const rp of renalPerps[i]) {
       const c = conc[rp.j];
       renal *= 1 - (1 - rp.factor) * (c / (c + refs[rp.j] * 0.25));
     }
-    let cl = renal + sh.other;
+    return renal;
+  }
+
+  function clearanceAt(i: number): number {
+    const sh = params[i].shares;
+    let cl = renalClearanceAt(i) + sh.other;
     for (const pw of sh.pathways) cl += pw.f * modulation[pwIndex[pw.pathway]];
     return cl;
   }
@@ -437,12 +459,37 @@ export function simulate(input: SimulationInput): SimulationResult {
     fineAct.push(new Float64Array(estSteps));
   }
   for (let e = 0; e < ne; e++) fineEnz.push(new Float64Array(estSteps));
+  const track = !input.metricsOnly;
+  const fineGut: Float64Array[] = [];
+  const finePeriph: Float64Array[] = [];
+  const fineRenalRate: Float64Array[] = [];
+  const fineElimRate: Float64Array[] = [];
+  const fineGutIn: Float64Array[] = [];
+  if (track) {
+    for (let i = 0; i < n; i++) {
+      fineGut.push(new Float64Array(estSteps));
+      finePeriph.push(new Float64Array(estSteps));
+      fineRenalRate.push(new Float64Array(estSteps));
+      fineElimRate.push(new Float64Array(estSteps));
+      fineGutIn.push(new Float64Array(estSteps));
+    }
+  }
 
+  // Journey bookkeeping: oral F per event to back-calculate administered dose and first-pass loss.
+  const gutF = new Float64Array(n).fill(1);
+  for (const r of regimens) {
+    const i = ids.indexOf(r.drugId);
+    if (r.route === 'po' || r.route === 'sc') gutF[i] = Math.max(bioavailability(drugs[i], r.route, phys), 1e-3);
+  }
+  const gutInputCum = new Float64Array(n);
+  const ivInputCum = new Float64Array(n);
   let evIdx = 0;
   function applyEvents(t: number) {
     while (evIdx < events.length && events[evIdx].t <= t + 1e-9) {
       const ev = events[evIdx++];
       y[ev.drug * NS + (ev.target === 'gut' ? 0 : 1)] += ev.amount;
+      if (ev.target === 'gut') gutInputCum[ev.drug] += ev.amount;
+      else ivInputCum[ev.drug] += ev.amount;
     }
   }
   function setInfusion(t: number) {
@@ -457,6 +504,20 @@ export function simulate(input: SimulationInput): SimulationResult {
       fineC[i][fi] = Math.max(y[i * NS + 1], 0) / params[i].Vc;
       fineCe[i][fi] = Math.max(y[i * NS + 3], 0);
       fineAct[i][fi] = activation(i);
+      if (track) {
+        const C = fineC[i][fi];
+        const p = params[i];
+        fineGut[i][fi] = Math.max(y[i * NS], 0);
+        finePeriph[i][fi] = Math.max(y[i * NS + 2], 0);
+        fineGutIn[i][fi] = gutInputCum[i];
+        if (p.vmax !== undefined && p.km !== undefined) {
+          fineElimRate[i][fi] = (p.vmax * hepaticModulation(i) * C) / (p.km + C);
+          fineRenalRate[i][fi] = 0;
+        } else {
+          fineElimRate[i][fi] = clearanceAt(i) * C;
+          fineRenalRate[i][fi] = renalClearanceAt(i) * C;
+        }
+      }
     }
     for (let e = 0; e < ne; e++) fineEnz[e][fi] = y[n * NS + e];
     fi++;
@@ -637,6 +698,27 @@ export function simulate(input: SimulationInput): SimulationResult {
         const ce = fineCe[i][k];
         return E0 + (Emax * ce ** hill) / (ec ** hill + ce ** hill);
       });
+    }
+    if (track) {
+      // Integrate elimination rates on the fine grid, then sample.
+      const renalCum = new Float64Array(F);
+      const elimCum = new Float64Array(F);
+      for (let k = 1; k < F; k++) {
+        const h = fineT[k] - fineT[k - 1];
+        renalCum[k] = renalCum[k - 1] + 0.5 * (fineRenalRate[i][k] + fineRenalRate[i][k - 1]) * h;
+        elimCum[k] = elimCum[k - 1] + 0.5 * (fineElimRate[i][k] + fineElimRate[i][k - 1]) * h;
+      }
+      const plasmaV = Math.min(0.043 * patient.weightKg, params[i].Vc);
+      const Fi = gutF[i];
+      s.journey = {
+        gut: uniq.map((k) => fineGut[i][k]),
+        plasma: uniq.map((k) => fineC[i][k] * plasmaV),
+        tissue: uniq.map((k) => fineC[i][k] * (params[i].Vc - plasmaV) + finePeriph[i][k]),
+        firstPass: uniq.map((k) => Math.max(0, fineGutIn[i][k] - fineGut[i][k]) * ((1 - Fi) / Fi)),
+        metabolised: uniq.map((k) => Math.max(0, elimCum[k] - renalCum[k])),
+        excreted: uniq.map((k) => renalCum[k]),
+        dosed: uniq.map((k) => fineGutIn[i][k] / Fi),
+      };
     }
     result.series[d.id] = s;
   });

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, Beaker, FlaskConical, FolderOpen, GraduationCap, Network, Plus, Sigma, Syringe, Users, ArrowRight } from 'lucide-react';
+import { Activity, Beaker, BrainCircuit, FlaskConical, FolderOpen, GraduationCap, HeartPulse, Network, Plus, Sigma, Syringe, Users, ArrowRight } from 'lucide-react';
 import { derivePhysiology, TRAINING_CASES } from '@medcare/engine';
 import { get } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -12,6 +12,8 @@ interface Stats { twins: number; simulations: number; compounds: number; attempt
 interface SimRow { id: string; name: string; kind: string; createdAt: number }
 
 const ACTIONS = [
+  { to: '/app/body', icon: HeartPulse, title: 'Body digital twin', body: 'Watch a medicine travel through the 3D body' },
+  { to: '/app/learning', icon: BrainCircuit, title: 'AI learning lab', body: 'RL dosing agent & learned side-effect models' },
   { to: '/app/simulate', icon: Activity, title: 'Simulate a regimen', body: 'Concentrations, effects, QTc and organ load' },
   { to: '/app/interactions', icon: Network, title: 'Check interactions', body: 'Mechanism-based DDI & PGx screen' },
   { to: '/app/tdm', icon: Sigma, title: 'Bayesian dosing', body: 'Fit measured levels, get next dose' },

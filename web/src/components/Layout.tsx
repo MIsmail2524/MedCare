@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Activity, BookOpen, Beaker, Brain, FlaskConical, GraduationCap, HeartPulse, LayoutDashboard, LogOut, Menu, Moon, Network,
-  Pill, Search, Settings, Shield, Sun, Monitor, Syringe, Users, FolderOpen, X, Sigma,
+  Pill, Search, Settings, Shield, Sun, Monitor, Syringe, Users, FolderOpen, X, Sigma, BrainCircuit,
 } from 'lucide-react';
 import { DRUGS } from '@medcare/engine';
 import { useAuth } from '../lib/auth';
@@ -11,7 +11,14 @@ import { cx } from './ui';
 
 const NAV = [
   { group: 'Overview', items: [{ to: '/app', label: 'Dashboard', icon: LayoutDashboard, end: true }] },
-  { group: 'Digital twins', items: [{ to: '/app/twins', label: 'Patient twins', icon: Users }] },
+  {
+    group: 'Digital twins',
+    items: [
+      { to: '/app/body', label: 'Body digital twin', icon: HeartPulse },
+      { to: '/app/twins', label: 'Patient twins', icon: Users },
+      { to: '/app/learning', label: 'AI learning lab', icon: BrainCircuit },
+    ],
+  },
   {
     group: 'Simulate',
     items: [

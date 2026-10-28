@@ -9,6 +9,7 @@ import { config, isProd, isTest } from './config.js';
 import type { DB } from './db.js';
 import { authRouter } from './routes/auth.js';
 import { dataRouter } from './routes/data.js';
+import { learningRouter } from './routes/learning.js';
 
 export function createApp(db: DB, opts: { staticDir?: string } = {}) {
   const app = express();
@@ -76,6 +77,7 @@ export function createApp(db: DB, opts: { staticDir?: string } = {}) {
   });
   api.use('/auth', authRouter(db));
   api.use('/', dataRouter(db));
+  api.use('/', learningRouter(db));
   api.use((_req, _res, next) => next(new HttpError(404, 'Not found')));
   app.use('/api', api);
 

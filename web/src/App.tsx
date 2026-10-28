@@ -21,6 +21,8 @@ const Methods = lazy(() => import('./pages/Methods'));
 const Experiments = lazy(() => import('./pages/Experiments'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Admin = lazy(() => import('./pages/Admin'));
+const BodyTwin = lazy(() => import('./pages/BodyTwin'));
+const Learning = lazy(() => import('./pages/Learning'));
 
 function Spinner() {
   return (
@@ -77,6 +79,8 @@ export default function App() {
             }
           >
             <Route index element={<Dashboard />} />
+            <Route path="body" element={<BodyTwin />} />
+            <Route path="learning" element={<Learning />} />
             <Route path="twins" element={<Twins />} />
             <Route path="twins/:id" element={<TwinDetail />} />
             <Route path="simulate" element={<Simulator />} />

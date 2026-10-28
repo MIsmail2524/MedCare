@@ -9,3 +9,5 @@ export * from './anesthesia.js';
 export * from './discovery.js';
 export * from './history.js';
 export * from './cases.js';
+export * from './adverse.js';
+export * from './learning.js';

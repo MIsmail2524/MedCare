@@ -215,3 +215,30 @@ select {
   max-width: 100%;
   text-overflow: ellipsis;
 }
+/* 3D twin side-effect callouts */
+.twin-callout {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: 220px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #fff;
+  background: rgba(10, 16, 28, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-left: 3px solid #f5c451;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.2s;
+}
+.twin-callout[data-sev='severe'] {
+  border-left-color: #ff6b6b;
+  box-shadow: 0 0 12px rgba(255, 80, 80, 0.45);
+}
+.twin-callout[data-sev='mild'] {
+  border-left-color: #8fd3ff;
+}

@@ -76,6 +76,7 @@ export default function Twins() {
                   <span>Updated {relativeTime(t.updatedAt)}</span>
                   <span className="flex gap-1">
                     <Button size="sm" variant="ghost" icon={<Copy className="size-3.5" />} onClick={() => create(t.data, `${t.name} (copy)`).then(reload)} aria-label={`Duplicate ${t.name}`}>Duplicate</Button>
+                    <Link to={`/app/body?twin=${t.id}`} className="inline-flex h-8 items-center rounded-lg bg-primary px-3 text-xs font-medium text-primary-fg hover:bg-primary-hover">Body twin</Link>
                     <Link to={`/app/simulate?twin=${t.id}`} className="inline-flex h-8 items-center rounded-lg bg-primary-soft px-3 text-xs font-medium text-primary hover:bg-primary hover:text-primary-fg">Simulate</Link>
                   </span>
                 </div>

@@ -24,6 +24,9 @@ interface TimeChartProps {
   ariaLabel: string;
   yDomain?: [number | 'auto', number | 'auto'];
   refLines?: { y: number; label: string }[];
+  /** Format x values (defaults to hours/days). */
+  xFormatter?: (v: number) => string;
+  xLabel?: string;
 }
 
 function niceTicks(span: number): number[] {
@@ -35,7 +38,7 @@ function niceTicks(span: number): number[] {
 }
 
 /** Concentration/effect vs time with crosshair tooltip, therapeutic window and toxic threshold. */
-export function TimeChart({ t, series, unit, height = 260, band, toxic, cursorH, observations, ariaLabel, yDomain, refLines }: TimeChartProps) {
+export function TimeChart({ t, series, unit, height = 260, band, toxic, cursorH, observations, ariaLabel, yDomain, refLines, xFormatter, xLabel }: TimeChartProps) {
   const data = useMemo(
     () =>
       t.map((x, i) => {
@@ -54,7 +57,7 @@ export function TimeChart({ t, series, unit, height = 260, band, toxic, cursorH,
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
             <CartesianGrid vertical={false} strokeDasharray="0" />
-            <XAxis dataKey="t" type="number" domain={[0, span]} ticks={ticks} tickFormatter={(v) => timeLabel(v, span)} stroke="var(--line-strong)" tickLine={false} />
+            <XAxis dataKey="t" type="number" domain={[xFormatter ? 'dataMin' : 0, span]} ticks={xFormatter ? undefined : ticks} tickFormatter={(v) => (xFormatter ? xFormatter(v) : timeLabel(v, span))} stroke="var(--line-strong)" tickLine={false} />
             <YAxis
               stroke="var(--line-strong)"
               tickLine={false}
@@ -71,7 +74,7 @@ export function TimeChart({ t, series, unit, height = 260, band, toxic, cursorH,
             <Tooltip
               cursor={{ stroke: 'var(--muted)', strokeDasharray: '3 3' }}
               contentStyle={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, fontSize: 12, color: 'var(--fg)' }}
-              labelFormatter={(v) => `t = ${fmt(Number(v))} h (${(Number(v) / 24).toFixed(1)} d)`}
+              labelFormatter={(v) => (xFormatter ? `${xLabel ?? ''} ${xFormatter(Number(v))}` : `t = ${fmt(Number(v))} h (${(Number(v) / 24).toFixed(1)} d)`)}
               formatter={(v, name) => [`${fmt(Number(v))} ${unit}`, String(name)]}
             />
             {series.length > 1 && <Legend wrapperStyle={{ fontSize: 12, color: 'var(--fg-2)' }} iconType="plainline" />}

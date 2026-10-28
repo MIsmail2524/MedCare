@@ -316,3 +316,60 @@ describe('features', () => {
     expect(row.totp_secret).not.toContain(secret);
   });
 });
+
+describe('learning from outcomes', () => {
+  const vancoReg = { id: 'r1', drugId: 'vancomycin', dose: 1000, unit: 'mg', intervalH: 12, route: 'iv_infusion', infusionH: 1, startH: 0, doses: 6 };
+
+  it('updates priors and side-effect model from a recorded outcome', async () => {
+    const c = await registered('learn@example.com');
+    const r = await send(c, 'post', '/api/outcomes', {
+      patient: defaultPatient(),
+      drugId: 'vancomycin',
+      regimens: [vancoReg],
+      observations: [{ timeH: 61, value: 32 }, { timeH: 71.5, value: 21 }],
+      sideEffects: [{ organ: 'kidneys', occurred: true, severity: 'moderate' }],
+    });
+    expect(r.status).toBe(201);
+    expect(r.body.learned.pk.clFactor).toBeLessThan(1);
+    expect(r.body.learned.sideEffects.positives).toContain('kidneys');
+    const m = await c.agent.get('/api/learning/model');
+    expect(m.body.priors.vancomycin.n).toBe(1);
+    expect(m.body.model.ae.samples.kidneys).toBeGreaterThan(0);
+    expect(m.body.model.outcomes).toBe(1);
+  });
+
+  it('keeps each user’s outcomes and models private', async () => {
+    const a = await registered('learnA@example.com');
+    const b = await registered('learnB@example.com');
+    const r = await send(a, 'post', '/api/outcomes', { patient: defaultPatient(), drugId: 'vancomycin', regimens: [vancoReg], sideEffects: [{ organ: 'kidneys', occurred: true }] });
+    expect((await b.agent.get('/api/outcomes')).body.outcomes).toHaveLength(0);
+    expect((await send(b, 'delete', `/api/outcomes/${r.body.id}`)).status).toBe(404);
+    expect((await b.agent.get('/api/learning/model')).body.model.outcomes).toBe(0);
+  });
+
+  it('validates uploaded RL policies', async () => {
+    const c = await registered('policy@example.com');
+    const bad = await send(c, 'put', '/api/learning/policies/vancomycin', { drugId: 'vancomycin', q: [1, 2, 3], counts: [1], episodes: 1, realUpdates: 0, trainedAt: 'x', rewardCurve: [] });
+    expect(bad.status).toBe(400);
+    const { newPolicy } = await import('@medcare/engine');
+    const ok = await send(c, 'put', '/api/learning/policies/vancomycin', newPolicy('vancomycin'));
+    expect(ok.status).toBe(200);
+    const mismatch = await send(c, 'put', '/api/learning/policies/gentamicin', newPolicy('vancomycin'));
+    expect(mismatch.status).toBe(400);
+    // With a policy present, an outcome reinforces it with a real transition.
+    const out = await send(c, 'post', '/api/outcomes', { patient: defaultPatient({ scr: 2.5 }), drugId: 'vancomycin', regimens: [vancoReg], decision: { prevStatus: 'none', multiplier: 1 } });
+    expect(out.body.learned.policy.realUpdates).toBe(1);
+  });
+
+  it('reports AI explainer as disabled without credentials', async () => {
+    const c = await registered('ai@example.com');
+    const prevKey = process.env.ANTHROPIC_API_KEY;
+    const prevTok = process.env.ANTHROPIC_AUTH_TOKEN;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_AUTH_TOKEN;
+    expect((await c.agent.get('/api/ai/status')).body.enabled).toBe(false);
+    expect((await send(c, 'post', '/api/ai/explain', { context: 'x'.repeat(50) })).status).toBe(503);
+    if (prevKey) process.env.ANTHROPIC_API_KEY = prevKey;
+    if (prevTok) process.env.ANTHROPIC_AUTH_TOKEN = prevTok;
+  });
+});
