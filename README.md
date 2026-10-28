@@ -73,6 +73,27 @@ The automated suite includes attack tests for CSRF, IDOR, privilege escalation, 
 
 ## Getting started
 
+### One command
+
+```bash
+git clone https://github.com/MIsmail2524/MedCare.git && cd MedCare && ./install.sh
+```
+
+`install.sh` checks the platform, installs missing `git`/`curl`, installs Node.js 22 via nvm when needed (no sudo), creates `.env` with a random `APP_SECRET`, runs `npm ci`, builds, runs the tests and starts the app on http://localhost:8080.
+
+| Option | Effect |
+|---|---|
+| `--dev` | Hot-reload servers (API :8080, web :5173) |
+| `--docker` | Build and run with Docker Compose |
+| `--no-start` | Install and build only |
+| `--skip-tests` | Skip the test suite |
+| `--port 3000` | Serve on another port |
+| `--dir PATH` | Clone/install into `PATH` when run outside the repo |
+
+The script is idempotent: re-running it keeps your `.env` and database (`data/`). Linux and macOS are supported; on Windows use WSL.
+
+### Manual
+
 Requirements: Node.js ≥ 22.13.
 
 ```bash
