@@ -1,5 +1,6 @@
 import express, { type NextFunction, type Request, type Response } from 'express';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { existsSync } from 'node:fs';
@@ -83,11 +84,14 @@ export function createApp(db: DB, opts: { staticDir?: string } = {}) {
 
   const staticDir = opts.staticDir ?? config.staticDir;
   if (staticDir && existsSync(staticDir)) {
+    // Compress static assets only — API responses carry tokens and are not compressed (BREACH).
+    app.use((req, res, next) => (req.path.startsWith('/api') ? next() : compression()(req, res, next)));
     app.use(
       express.static(staticDir, {
         index: false,
         setHeaders(res, file) {
-          res.setHeader('Cache-Control', /\/assets\//.test(file) ? 'public, max-age=31536000, immutable' : 'no-cache');
+          res.setHeader('Cache-Control', /\/assets\//.test(file) ? 'public, max-age=31536000, immutable' : /\/models\//.test(file) ? 'public, max-age=86400' : 'no-cache');
+          if (file.endsWith('.glb')) res.setHeader('Content-Type', 'model/gltf-binary');
         },
       }),
     );

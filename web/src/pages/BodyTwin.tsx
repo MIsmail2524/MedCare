@@ -12,7 +12,7 @@ import { useToast } from '../lib/toast';
 import { fmt, fmtHours, uid } from '../lib/format';
 import { Badge, Button, Callout, Card, Field, Modal, NumberField, PageHeader, Select, Switch, cx } from '../components/ui';
 import { DrugSelect, RegimenEditor, ROUTE_LABEL, TwinPicker, useDrugColors } from '../components/clinical';
-import { BodyTwin3D, COMPARTMENTS, webglSupported, type BodyFrame, type Compartment } from '../components/BodyTwin3D';
+import { BodyTwin3D, COMPARTMENTS, webglSupported, type BodyFrame, type Compartment, type Layers } from '../components/BodyTwin3D';
 import { BodyMap, ORGAN_LABEL } from '../components/BodyMap';
 import { TimeChart } from '../components/charts';
 
@@ -87,6 +87,8 @@ export default function BodyTwin() {
   const [aiBusy, setAiBusy] = useState(false);
   const [outcomeOpen, setOutcomeOpen] = useState(false);
   const [webgl] = useState(webglSupported);
+  const [layers, setLayers] = useState<Layers>({ skin: true, muscle: false, skeleton: true, vessels: true });
+  const [anatomy, setAnatomy] = useState<'loading' | 'ready' | 'fallback'>('loading');
 
   const loadModel = useCallback(() => get<{ model: LearnedModel }>('/learning/model').then((r) => setModel(r.model)).catch(() => setModel(null)), []);
   useEffect(() => {
@@ -290,7 +292,7 @@ export default function BodyTwin() {
             <>
               <div className="relative">
                 {webgl ? (
-                  <BodyTwin3D frame={frame} drugColor={colors(focusId)} highlight={hoverOrgan} onHoverOrgan={setHoverOrgan} autoRotate={rotate && !playing} />
+                  <BodyTwin3D frame={frame} drugColor={colors(focusId)} highlight={hoverOrgan} onHoverOrgan={setHoverOrgan} autoRotate={rotate && !playing} layers={layers} onAnatomyStatus={setAnatomy} />
                 ) : (
                   <Card><BodyMap organs={Object.fromEntries(ORGANS.map((o) => [o, { ...frame.organs[o], notes: [] }])) as never} /></Card>
                 )}
@@ -310,6 +312,15 @@ export default function BodyTwin() {
                         <div key={k} className="rounded-xl bg-black/45 px-3 py-1.5 backdrop-blur"><p className="text-[10px] uppercase tracking-wider text-white/60">{k}</p><p className="text-sm font-semibold tabular">{val}</p></div>
                       ))}
                     </div>
+                    <div className="absolute left-4 top-24 flex flex-col gap-1.5" role="group" aria-label="Anatomy layers">
+                      {(['skin', 'muscle', 'skeleton', 'vessels'] as (keyof Layers)[]).map((k) => (
+                        <button key={k} aria-pressed={layers[k]} onClick={() => setLayers({ ...layers, [k]: !layers[k] })} className={cx('rounded-lg px-2.5 py-1 text-left text-xs font-medium capitalize backdrop-blur', layers[k] ? 'bg-white/90 text-[#0b1220]' : 'bg-black/45 text-white/70')}>
+                          {k}
+                        </button>
+                      ))}
+                      {anatomy === 'loading' && <span className="rounded-lg bg-black/45 px-2.5 py-1 text-[11px] text-white/80">Loading anatomy…</span>}
+                    </div>
+                    <p className="pointer-events-none absolute bottom-16 right-4 text-[10px] text-white/50">{anatomy === 'ready' ? 'Anatomy: BodyParts3D, © DBCLS, CC BY 4.0' : anatomy === 'fallback' ? 'Schematic anatomy' : ''}</p>
                     <div className="absolute inset-x-4 bottom-4 flex items-center gap-3 rounded-xl bg-black/50 px-3 py-2 text-white backdrop-blur">
                       <button onClick={() => { if (!playing && cursor >= sim.durationH) setCursor(0); setPlaying((p) => !p); }} className="grid size-9 place-items-center rounded-full bg-white text-[#0b1220]" aria-label={playing ? 'Pause' : 'Play the medicine journey'}>
                         {playing ? <Pause className="size-4" /> : <Play className="size-4" />}

@@ -12,7 +12,7 @@ MedCare Twin lets doctors, surgeons, pharmacists, students and drug developers r
 
 | Module | What it does |
 |---|---|
-| **3D body digital twin** | A holographic, rotatable human body (three.js). Give a medicine and watch drug molecules travel mouth → stomach → intestine → portal vein → liver first-pass → heart and circulation → tissues → hepatic metabolism / renal excretion, in proportion to the simulated mass balance. Organs glow with therapeutic engagement and pulse red with predicted toxicity; side-effect callouts appear on the affected organs as they develop; live HUD of concentration, heart rate, QTc and effect; event timeline (absorption, first peak, steady state, side-effect onsets). |
+| **3D body digital twin** | A rotatable human body built from real anatomical meshes (BodyParts3D: skin, skeleton, muscles, vessels, brain, heart, lungs, liver, GI tract, kidneys, bladder — ~1,250 structures) with skin / muscle / skeleton / vessel layer toggles. Give a medicine and watch drug molecules travel mouth → stomach → intestine → portal vein → liver first-pass → heart and circulation → tissues → hepatic metabolism / renal excretion, in proportion to the simulated mass balance. Organs glow with therapeutic engagement and pulse red with predicted toxicity; side-effect callouts appear on the affected organs as they develop; live HUD of concentration, heart rate, QTc and effect; event timeline (absorption, first peak, steady state, side-effect onsets). |
 | **AI side-effect prediction** | Per-organ logistic models over exposure-vs-threshold (basis-aware: peak, trough, average, AUC₂₄), age, renal and hepatic impairment, co-medication burden, pharmacogenomic deviation and sex; idiosyncratic reactions (SJS/TEN with HLA-B*15:02, infusion reactions) handled separately. Each prediction lists its time course, onset, drivers and symptoms. |
 | **Learning from real outcomes** | Recording what actually happened (measured levels, observed side effects, the dose decision) updates three models server-side: pooled Bayesian PK priors (empirical Bayes with shrinkage), the organ side-effect models (online MAP logistic regression), and the RL dosing agent (real-transition Q update). Future patients' twins use the learned model. |
 | **Reinforcement-learning dosing agent** | Tabular Q-learning over patient context (renal × weight × age × metabolic genotype × last exposure) and dose multipliers, trained in silico on thousands of virtual patients in a Web Worker, evaluated on held-out patients against standard dosing (e.g. vancomycin target attainment 29% → 59%, toxic exposure 41% → 9%), and reinforced by recorded outcomes. |
@@ -151,6 +151,14 @@ The image is multi-stage, runs as the unprivileged `node` user, has a health che
 ## UX and accessibility
 
 Built around Nielsen’s heuristics and WCAG 2.2 AA: instant feedback and visible system status, clinical units and terminology, presets and templates (recognition over recall), validation with inline error messages, confirmation for destructive actions and unsaved-change guards, keyboard-navigable tabs, dialogs and a Ctrl/⌘-K command palette, skip link, visible focus rings, ARIA live regions, colour-blind-safe validated chart palette with labels and tables (never colour alone), light/dark/system themes, reduced-motion support and responsive layouts down to 375 px.
+
+## Anatomy data
+
+The 3D anatomy (`web/public/models/anatomy.glb`) is derived from **BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International** (earlier releases: CC BY-SA 2.1 JP). See [ASSETS_LICENSE.md](ASSETS_LICENSE.md). To rebuild it from the original OBJ files:
+
+```bash
+npm run build:anatomy -- <path-to-extracted-partof_BP3D_4.0_obj_99> - web/public/models/anatomy.glb
+```
 
 ## Scientific references
 

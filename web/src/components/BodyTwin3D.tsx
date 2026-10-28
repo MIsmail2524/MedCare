@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { Organ } from '@medcare/engine';
 
 // Procedural holographic human digital twin. Organs glow with therapeutic engagement (blue) and
@@ -28,7 +29,18 @@ export interface BodyFrame {
   targetOrgans: Organ[];
 }
 
+export interface Layers {
+  skin: boolean;
+  muscle: boolean;
+  skeleton: boolean;
+  vessels: boolean;
+}
+
 interface Props {
+  /** Anatomical model (BodyParts3D-derived GLB). Falls back to procedural organs if it fails to load. */
+  anatomyUrl?: string;
+  layers?: Layers;
+  onAnatomyStatus?: (s: 'loading' | 'ready' | 'fallback') => void;
   frame: BodyFrame;
   drugColor: string;
   highlight?: Organ | null;
@@ -74,7 +86,7 @@ function webglAvailable() {
 
 const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
-export function BodyTwin3D({ frame, drugColor, highlight, onHoverOrgan, height = 620, autoRotate = true }: Props) {
+export function BodyTwin3D({ frame, drugColor, highlight, onHoverOrgan, height = 620, autoRotate = true, anatomyUrl = '/models/anatomy.glb', layers, onAnatomyStatus }: Props) {
   const mount = useRef<HTMLDivElement>(null);
   const labels = useRef<HTMLDivElement>(null);
   const frameRef = useRef(frame);
@@ -88,6 +100,10 @@ export function BodyTwin3D({ frame, drugColor, highlight, onHoverOrgan, height =
   hlRef.current = highlight ?? null;
   hoverCb.current = onHoverOrgan;
   rotRef.current = autoRotate;
+  const layersRef = useRef<Layers>(layers ?? { skin: true, muscle: false, skeleton: true, vessels: true });
+  layersRef.current = layers ?? layersRef.current;
+  const statusCb = useRef(onAnatomyStatus);
+  statusCb.current = onAnatomyStatus;
 
   useEffect(() => {
     if (!supported || !mount.current) return;
@@ -186,15 +202,15 @@ export function BodyTwin3D({ frame, drugColor, highlight, onHoverOrgan, height =
     const sphere = track(new THREE.SphereGeometry(1, 28, 20));
     addOrgan('brain', sphere.clone(), v(...ORGAN_POS.brain), v(0.083, 0.068, 0.092));
     addOrgan('thyroid', new THREE.TorusGeometry(0.018, 0.008, 8, 16, Math.PI * 1.3), v(0, 0.565, 0.035), v(1, 1, 1), new THREE.Euler(0, 0, Math.PI * 1.15));
-    const lungL = addOrgan('lungs', sphere.clone(), v(-0.078, 0.345, 0.0), v(0.064, 0.115, 0.06), undefined, 0.75);
-    const lungR = addOrgan('lungs', sphere.clone(), v(0.078, 0.345, 0.0), v(0.058, 0.11, 0.058), undefined, 0.75);
-    const heart = addOrgan('heart', sphere.clone(), v(...ORGAN_POS.heart), v(0.042, 0.05, 0.04), new THREE.Euler(0, 0, -0.5));
+    let lungL = addOrgan('lungs', sphere.clone(), v(-0.078, 0.345, 0.0), v(0.064, 0.115, 0.06), undefined, 0.75);
+    let lungR = addOrgan('lungs', sphere.clone(), v(0.078, 0.345, 0.0), v(0.058, 0.11, 0.058), undefined, 0.75);
+    let heart = addOrgan('heart', sphere.clone(), v(...ORGAN_POS.heart), v(0.042, 0.05, 0.04), new THREE.Euler(0, 0, -0.5));
     addOrgan('liver', sphere.clone(), v(...ORGAN_POS.liver), v(0.105, 0.048, 0.065), new THREE.Euler(0, 0, -0.18));
     addOrgan('gi', sphere.clone(), v(0.065, 0.16, 0.04), v(0.05, 0.038, 0.035), new THREE.Euler(0, 0, 0.5)); // stomach
     addOrgan('pancreas', new THREE.CapsuleGeometry(0.012, 0.09, 4, 10), v(...ORGAN_POS.pancreas), v(1, 1, 1), new THREE.Euler(0, 0, Math.PI / 2 - 0.15));
     addOrgan('kidneys', sphere.clone(), v(-0.062, 0.1, -0.045), v(0.024, 0.04, 0.02), new THREE.Euler(0, 0, 0.2));
     addOrgan('kidneys', sphere.clone(), v(0.062, 0.1, -0.045), v(0.024, 0.04, 0.02), new THREE.Euler(0, 0, -0.2));
-    const bladder = addOrgan('kidneys', sphere.clone(), v(0, -0.115, 0.035), v(0.03, 0.026, 0.026), undefined, 0.6);
+    let bladder = addOrgan('kidneys', sphere.clone(), v(0, -0.115, 0.035), v(0.03, 0.026, 0.026), undefined, 0.6);
     // intestines: coiled tube
     const coil: THREE.Vector3[] = [];
     for (let i = 0; i <= 90; i++) {
@@ -225,8 +241,8 @@ export function BodyTwin3D({ frame, drugColor, highlight, onHoverOrgan, height =
     vessel([v(0.0, 0.03, 0.03), v(-0.02, 0.1, 0.03), v(-0.05, 0.16, 0.035)], 0.005, 0x7b4fa0);
 
     // ---------- particle paths
-    const giPath = new THREE.CatmullRomCurve3([v(0, 0.68, 0.085), v(0, 0.6, 0.03), v(0.005, 0.45, 0.0), v(0.03, 0.25, 0.01), v(0.065, 0.165, 0.04), v(0.03, 0.12, 0.05), ...coil.slice(0, 91).filter((_, i) => i % 3 === 0)]);
-    const loops = [
+    let giPath = new THREE.CatmullRomCurve3([v(0, 0.68, 0.085), v(0, 0.6, 0.03), v(0.005, 0.45, 0.0), v(0.03, 0.25, 0.01), v(0.065, 0.165, 0.04), v(0.03, 0.12, 0.05), ...coil.slice(0, 91).filter((_, i) => i % 3 === 0)]);
+    let loops = [
       new THREE.CatmullRomCurve3([v(0.028, 0.29, 0.045), v(0.03, 0.38, 0.0), v(0.0, 0.3, -0.04), v(0, 0.0, -0.035), v(0, -0.12, -0.02), v(-0.07, -0.3, 0.0), v(-0.08, -0.75, 0.0), v(-0.06, -0.3, 0.02), v(-0.02, -0.1, 0.0), v(-0.02, 0.12, -0.02)], true),
       new THREE.CatmullRomCurve3([v(0.028, 0.29, 0.045), v(0.03, 0.38, 0.0), v(0, -0.12, -0.02), v(0.07, -0.3, 0.0), v(0.08, -0.75, 0.0), v(0.06, -0.3, 0.02), v(0.02, -0.1, 0.0), v(-0.02, 0.12, -0.02)], true),
       new THREE.CatmullRomCurve3([v(0.028, 0.29, 0.045), v(0.03, 0.45, 0.0), v(0.03, 0.72, 0.0), v(0, 0.8, 0.0), v(-0.03, 0.72, 0.0), v(-0.03, 0.45, 0.0)], true),
@@ -262,7 +278,7 @@ export function BodyTwin3D({ frame, drugColor, highlight, onHoverOrgan, height =
     const ps: PState[] = Array.from({ length: N }, (_, i) => ({
       comp: 'inactive',
       seed: Math.random(),
-      loop: i % loops.length,
+      loop: i % 4,
       off: v((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2),
       target: Math.floor(Math.random() * 1000),
     }));
@@ -318,7 +334,174 @@ export function BodyTwin3D({ frame, drugColor, highlight, onHoverOrgan, height =
     const greyC = new THREE.Color(0x8b93a7);
     const metabC = new THREE.Color(0xb48cff);
     const urineC = new THREE.Color(0xffd54a);
-    const organAnchor = (o: Organ) => v(...ORGAN_POS[o]);
+    const anchors: Record<Organ, THREE.Vector3> = Object.fromEntries((Object.keys(ORGAN_POS) as Organ[]).map((o) => [o, v(...ORGAN_POS[o])])) as Record<Organ, THREE.Vector3>;
+    let bladderPos = v(0, -0.115, 0.035);
+    const organAnchor = (o: Organ) => anchors[o].clone();
+    const proceduralOrgans = organMeshes.slice();
+    const pulseTargets: { mesh: THREE.Mesh; kind: 'heart' | 'lung' | 'bladder' }[] = [];
+    const layerGroups: Record<keyof Layers, THREE.Object3D[]> = { skin: [shell], muscle: [], skeleton: [], vessels: [] };
+    for (const m of proceduralOrgans) if (m.userData.organ === 'blood') layerGroups.vessels.push(m);
+
+    // ---------- real anatomy (BodyParts3D, CC BY 4.0)
+    statusCb.current?.('loading');
+    new GLTFLoader().load(
+      anatomyUrl,
+      (gltf) => {
+        const anat = gltf.scene;
+        const ORGAN_OF: Record<string, Organ | 'skeleton'> = {
+          brain: 'brain', thyroid: 'thyroid', heart: 'heart', lungs: 'lungs', liver: 'liver', pancreas: 'pancreas', gi: 'gi', stomach: 'gi', esophagus: 'gi',
+          kidneys: 'kidneys', bladder: 'kidneys', blood: 'blood', muscle: 'muscle', skeleton: 'skeleton', skin: 'skin', other: 'skeleton',
+        };
+        const groupBoxes: Record<string, THREE.Box3> = {};
+        const meshes: THREE.Mesh[] = [];
+        anat.traverse((o) => {
+          if (!(o as THREE.Mesh).isMesh) return;
+          const mesh = o as THREE.Mesh;
+          const gname = ((Array.isArray(mesh.material) ? mesh.material[0] : mesh.material) as THREE.Material).name;
+          const organ = ORGAN_OF[gname];
+          if (!organ) return;
+          mesh.updateWorldMatrix(true, false);
+          // De-quantize (KHR_mesh_quantization) to float before baking the node transform.
+          const src0 = mesh.geometry.getAttribute('position');
+          const f32 = new Float32Array(src0.count * 3);
+          for (let i = 0; i < src0.count; i++) {
+            f32[i * 3] = src0.getX(i);
+            f32[i * 3 + 1] = src0.getY(i);
+            f32[i * 3 + 2] = src0.getZ(i);
+          }
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute('position', new THREE.BufferAttribute(f32, 3));
+          if (mesh.geometry.index) geo.setIndex(mesh.geometry.index);
+          mesh.geometry.dispose();
+          mesh.geometry = geo;
+          track(geo);
+          mesh.geometry.applyMatrix4(mesh.matrixWorld);
+          mesh.geometry.computeVertexNormals();
+          mesh.geometry.computeBoundingBox();
+          const box = mesh.geometry.boundingBox!.clone();
+          (groupBoxes[gname] ??= new THREE.Box3()).union(box);
+          // centre geometry so the organ can pulse/scale about its own centre
+          const c = box.getCenter(new THREE.Vector3());
+          mesh.geometry.translate(-c.x, -c.y, -c.z);
+          mesh.position.copy(c);
+          mesh.rotation.set(0, 0, 0);
+          mesh.scale.set(1, 1, 1);
+          const src = (Array.isArray(mesh.material) ? mesh.material[0] : mesh.material) as THREE.MeshStandardMaterial;
+          const isSkel = organ === 'skeleton';
+          const isMuscle = organ === 'muscle';
+          if (gname === 'skin') {
+            // Real skin surface rendered as a translucent hologram.
+            // Dense real skin: translucent fresnel-like shell without wireframe so organs stay visible.
+            mesh.material = track(
+              new THREE.MeshPhysicalMaterial({ color: 0x8fd8ff, transparent: true, opacity: 0.07, roughness: 0.25, depthWrite: false, side: THREE.FrontSide, emissive: 0x0b4a6f, emissiveIntensity: 0.4 }),
+            );
+            mesh.userData.organ = 'skin';
+            mesh.userData.group = 'skin';
+            mesh.userData.baseScale = new THREE.Vector3(1, 1, 1);
+            meshes.push(mesh);
+            return;
+          }
+          const mat = track(
+            new THREE.MeshStandardMaterial({
+              color: src.color ?? new THREE.Color(0xcccccc),
+              roughness: isSkel ? 0.7 : 0.5,
+              metalness: 0,
+              transparent: true,
+              opacity: gname === 'other' ? 0.35 : isSkel ? 0.28 : isMuscle ? 0.22 : gname === 'blood' ? 0.85 : 0.95,
+              depthWrite: !isMuscle,
+              emissive: 0x000000,
+            }),
+          );
+          mesh.material = mat;
+          mesh.userData.organ = isSkel ? null : organ;
+          if (gname === 'other') mesh.userData.organ = null;
+          mesh.userData.baseScale = new THREE.Vector3(1, 1, 1);
+          mesh.userData.group = gname;
+          meshes.push(mesh);
+        });
+        if (!meshes.length) {
+          statusCb.current?.('fallback');
+          return;
+        }
+        // swap procedural organs for anatomical ones
+        for (const m of proceduralOrgans) {
+          m.visible = false;
+          const idx = organMeshes.indexOf(m);
+          if (idx >= 0) organMeshes.splice(idx, 1);
+        }
+        layerGroups.vessels = [];
+        const root = new THREE.Group();
+        for (const m of meshes) {
+          root.add(m);
+          const g = m.userData.group as string;
+          if (g === 'skin') layerGroups.skin.push(m);
+          if (g === 'skeleton') layerGroups.skeleton.push(m);
+          else if (g === 'muscle') layerGroups.muscle.push(m);
+          else if (g === 'blood') layerGroups.vessels.push(m);
+          if (m.userData.organ) organMeshes.push(m);
+          if (g === 'heart') pulseTargets.push({ mesh: m, kind: 'heart' });
+          if (g === 'lungs') pulseTargets.push({ mesh: m, kind: 'lung' });
+          if (g === 'bladder') pulseTargets.push({ mesh: m, kind: 'bladder' });
+        }
+        scene.add(root);
+        const centre = (k: string) => groupBoxes[k]?.getCenter(new THREE.Vector3());
+        for (const o of Object.keys(anchors) as Organ[]) {
+          const k = o === 'gi' ? 'stomach' : o;
+          const c = centre(k) ?? centre(o);
+          if (c) anchors[o].copy(c);
+        }
+        if (groupBoxes.gi) anchors.gi.copy(groupBoxes.gi.getCenter(new THREE.Vector3()));
+        if (centre('bladder')) bladderPos = centre('bladder')!;
+        const all = new THREE.Box3();
+        for (const b of Object.values(groupBoxes)) all.union(b);
+        if (groupBoxes.skin) {
+          shell.visible = false;
+          layerGroups.skin = layerGroups.skin.filter((o) => o !== shell);
+        }
+        // fit the holographic skin to the anatomy (used only if no skin mesh)
+        const shellBox = new THREE.Box3().setFromObject(shell);
+        const sH = shellBox.max.y - shellBox.min.y;
+        const aH = all.max.y - all.min.y;
+        const k = (aH / sH) * 1.02;
+        shell.scale.setScalar(k);
+        const sb = new THREE.Box3().setFromObject(shell);
+        shell.position.add(new THREE.Vector3((all.min.x + all.max.x) / 2 - (sb.min.x + sb.max.x) / 2, all.min.y - sb.min.y - 0.01, (all.min.z + all.max.z) / 2 - (sb.min.z + sb.max.z) / 2));
+        // particle paths through the real anatomy
+        const H = anchors.heart;
+        const gb = groupBoxes.gi ?? new THREE.Box3(v(-0.08, -0.08, 0), v(0.08, 0.08, 0.06));
+        const gc = gb.getCenter(new THREE.Vector3());
+        const gs = gb.getSize(new THREE.Vector3());
+        const coil2: THREE.Vector3[] = [];
+        for (let i = 0; i <= 60; i++) {
+          const t2 = i / 60;
+          const a = t2 * Math.PI * 7;
+          coil2.push(v(gc.x + Math.cos(a) * gs.x * 0.35, gb.max.y - t2 * gs.y * 0.9, gc.z + Math.sin(a) * gs.z * 0.3));
+        }
+        const brainC = anchors.brain;
+        const mouth = v(brainC.x, brainC.y - (groupBoxes.brain ? (groupBoxes.brain.max.y - groupBoxes.brain.min.y) * 1.1 : 0.12), brainC.z + 0.06);
+        const eso = groupBoxes.esophagus;
+        giPath = new THREE.CatmullRomCurve3([
+          mouth,
+          eso ? v(eso.getCenter(new THREE.Vector3()).x, eso.max.y, eso.getCenter(new THREE.Vector3()).z) : mouth.clone().add(v(0, -0.08, -0.04)),
+          eso ? eso.getCenter(new THREE.Vector3()) : H.clone().add(v(-0.02, 0, -0.04)),
+          centre('stomach') ?? anchors.gi.clone().add(v(0.05, 0.12, 0)),
+          ...coil2,
+        ]);
+        const legY = all.min.y + aH * 0.12;
+        const kid = anchors.kidneys;
+        const liv = anchors.liver;
+        loops = [
+          new THREE.CatmullRomCurve3([H, v(H.x, H.y + 0.06, H.z - 0.04), v(0, kid.y, kid.z), v(-0.07, legY, 0), v(-0.05, kid.y - 0.15, 0.02), v(H.x - 0.03, H.y - 0.05, H.z)], true),
+          new THREE.CatmullRomCurve3([H, v(H.x, H.y + 0.06, H.z - 0.04), v(0, kid.y, kid.z), v(0.07, legY, 0), v(0.05, kid.y - 0.15, 0.02), v(H.x - 0.03, H.y - 0.05, H.z)], true),
+          new THREE.CatmullRomCurve3([H, v(H.x + 0.02, (H.y + brainC.y) / 2, H.z - 0.02), brainC.clone(), v(H.x - 0.02, (H.y + brainC.y) / 2, H.z - 0.02)], true),
+          new THREE.CatmullRomCurve3([H, liv.clone(), kid.clone().add(v(0.06, 0, 0)), kid.clone().add(v(-0.06, 0, 0)), v(H.x, H.y - 0.06, H.z)], true),
+        ];
+        controls.target.set(0, (all.min.y + all.max.y) / 2 + aH * 0.05, 0);
+        statusCb.current?.('ready');
+      },
+      undefined,
+      () => statusCb.current?.('fallback'),
+    );
 
     // ---------- interaction
     const raycaster = new THREE.Raycaster();
@@ -382,9 +565,18 @@ export function BodyTwin3D({ frame, drugColor, highlight, onHoverOrgan, height =
       }
       const beat = 1 + 0.07 * Math.max(0, Math.sin(t * Math.PI * 2 * (f.heartRate / 60))) ** 3;
       heart.scale.copy((heart.userData.baseScale as THREE.Vector3).clone().multiplyScalar(beat));
+      for (const pt of pulseTargets) {
+        if (pt.kind === 'heart') pt.mesh.scale.setScalar(beat);
+      }
       const breath = 1 + 0.05 * f.breathing * Math.sin(t * Math.PI * 2 * (0.12 + 0.13 * f.breathing));
       for (const lung of [lungL, lungR]) lung.scale.set((lung.userData.baseScale as THREE.Vector3).x * breath, (lung.userData.baseScale as THREE.Vector3).y * breath, (lung.userData.baseScale as THREE.Vector3).z);
       bladder.scale.setScalar(1).multiply(v(0.03, 0.026, 0.026)).multiplyScalar(1 + 0.6 * f.journey.excreted);
+      for (const pt of pulseTargets) {
+        if (pt.kind === 'lung') pt.mesh.scale.set(breath, breath, 1);
+        if (pt.kind === 'bladder') pt.mesh.scale.setScalar(1 + 0.5 * f.journey.excreted);
+      }
+      const L = layersRef.current;
+      for (const [k, objs] of Object.entries(layerGroups) as [keyof Layers, THREE.Object3D[]][]) for (const o of objs) o.visible = L[k];
 
       // particles
       const dc = cssColor(colorRef.current).lerp(new THREE.Color(0xffffff), 0.35);
@@ -430,7 +622,7 @@ export function BodyTwin3D({ frame, drugColor, highlight, onHoverOrgan, height =
             size = 0.45;
             break;
           case 'excreted':
-            tmp.set(0, -0.115, 0.035).addScaledVector(p.off, 0.02);
+            tmp.copy(bladderPos).addScaledVector(p.off, 0.02);
             col = urineC;
             size = 0.5;
             break;
@@ -497,7 +689,7 @@ export function BodyTwin3D({ frame, drugColor, highlight, onHoverOrgan, height =
       el.removeChild(renderer.domElement);
       labelEls.forEach((d) => d.remove());
     };
-  }, [supported]);
+  }, [supported, anatomyUrl]);
 
   if (!supported) return null;
   return (
