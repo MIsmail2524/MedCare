@@ -8,6 +8,7 @@ import { fmt } from '../lib/format';
 import { Badge, Button, Callout, Card, ConfirmDialog, PageHeader, Skeleton, Tabs, cx } from '../components/ui';
 import { HistoryEditor, PatientForm, PhysiologySummary } from '../components/PatientForm';
 import { BodyMap, ORGAN_LABEL, type OrganState } from '../components/BodyMap';
+import { ReportImport } from '../components/ReportImport';
 import { TimeChart } from '../components/charts';
 
 type Tab = 'profile' | 'history' | 'retro';
@@ -186,6 +187,7 @@ export default function TwinDetail() {
         description={`${data.age} y · ${data.sex} · ${data.weightKg} kg · ${data.heightCm} cm`}
         actions={
           <>
+            <ReportImport patient={data} onApply={(p) => { setData(p); toast('Report data applied — review and save'); }} />
             <Button variant="secondary" icon={<Trash2 className="size-4" />} onClick={() => setConfirm(true)}>Delete</Button>
             <Button variant="secondary" icon={<Activity className="size-4" />} onClick={() => nav(`/app/simulate?twin=${id}`)} disabled={dirty} title={dirty ? 'Save changes first' : undefined}>Simulate</Button>
             <Button icon={<Save className="size-4" />} onClick={save} loading={busy} disabled={!dirty}>{dirty ? 'Save changes' : 'Saved'}</Button>

@@ -23,6 +23,9 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Admin = lazy(() => import('./pages/Admin'));
 const BodyTwin = lazy(() => import('./pages/BodyTwin'));
 const Learning = lazy(() => import('./pages/Learning'));
+const Regulatory = lazy(() => import('./pages/Regulatory'));
+const Signals = lazy(() => import('./pages/Signals'));
+const ADR = lazy(() => import('./pages/ADR'));
 
 function Spinner() {
   return (
@@ -81,6 +84,9 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="body" element={<BodyTwin />} />
             <Route path="learning" element={<Learning />} />
+            <Route path="regulatory" element={<Regulatory />} />
+            <Route path="signals" element={<Signals />} />
+            <Route path="adr" element={<ADR />} />
             <Route path="twins" element={<Twins />} />
             <Route path="twins/:id" element={<TwinDetail />} />
             <Route path="simulate" element={<Simulator />} />

@@ -42,6 +42,21 @@ MedCare Twin lets doctors, surgeons, pharmacists, students and drug developers r
 | Vancomycin 1 g q12h AUC₂₄ | 400–550 | 426 |
 | Carbamazepine t½ after autoinduction | 12–17 h | 15.7 h |
 
+## Regulatory twin & pharmacovigilance
+
+Exposure modelling (PBPK), side-effect prediction and post-market signal detection are usually separate tools. MedCare Twin combines them, in line with the integrated new-approach-methodology strategy described in the FDA's 2025 roadmap on reducing animal testing.
+
+- **Open safety knowledge base**: `tools/collect-datasets.mjs` gathers, for 207 FDA-labelled medicines, label sections and pharmacologic class plus FAERS reaction counts (openFDA) and structures (PubChem). `tools/build-safety-kb.mjs` maps label subsection headings and MedDRA terms to organ systems, computes organ-level disproportionality (PRR against the pooled reference set) and Morgan fingerprints (RDKit).
+- **Organ-liability model**: similarity-weighted nearest neighbours over structure and pharmacologic class, with an applicability-domain check. Leave-one-drug-out validation against FDA labels gives a macro AUROC of 0.75 (range 0.66-0.85 by organ); per-organ metrics and calibration are shown in the app.
+- **Regulatory twin dossier**: for an approved drug (the blind prediction is shown next to the real label) or a new molecule entered as SMILES, predicted liabilities are combined with simulated exposure in special populations and with index interaction partners to produce an exposure-stratified risk table, a draft label, virtual-population target attainment and a list of evidence gaps for reviewers.
+- **Post-market signal gaps**: organs with disproportionate FAERS reporting that the label does not mention, or mentions only under Adverse Reactions.
+- **ADR detective**: ranks suspect medicines for an observed reaction using label/FAERS liability, organ-specific onset latency, simulated level at onset and interaction-driven exposure, with management steps and a simulated dechallenge.
+- **Report import**: free text, CSV and FHIR R4 bundles parsed in the browser into twin parameters (labs with unit conversion, estimated Child-Pugh, CYP diplotypes to CPIC phenotypes, HLA alleles, medications).
+
+Limitations: FAERS is spontaneous and confounded, label-derived ground truth is incomplete, and risk indices are relative rather than incidences. This is a research and training prototype, not a validated regulatory tool.
+
+Refresh the data with `npm run data:collect` (set `OPENFDA_API_KEY` for higher limits) and `npm run data:kb`.
+
 ## Architecture
 
 ```
@@ -57,6 +72,10 @@ packages/engine   TypeScript PK/PD engine (no dependencies) — shared by browse
   history.ts        retrospective reconstruction of past exposure
   adverse.ts        organ side-effect risk models (learnable logistic regression)
   learning.ts       empirical-Bayes PK priors, Q-learning dosing agent, outcome reinforcement
+  safety.ts         label/FAERS organ mapping, PRR, fingerprints, liability model, validation, signal gaps
+  regulatory.ts     candidate drugs, special-population exposure, draft label, reviewer questions
+  adr.ts            ADR causality ranking, management, dechallenge simulation
+  reports.ts        lab-report / CSV / FHIR parsing
   cases.ts          training cases and scoring
 server            Express 5 + SQLite (node:sqlite) API, serves the built SPA
 web               React 19 + Vite + Tailwind 4 + Recharts SPA
@@ -106,7 +125,7 @@ Requirements: Node.js ≥ 22.13.
 ```bash
 npm ci
 npm run build          # engine → web → server
-npm test               # 65 engine + API/security tests
+npm test               # 76 engine + API/security tests
 npm start              # http://localhost:8080
 ```
 

@@ -11,3 +11,7 @@ export * from './history.js';
 export * from './cases.js';
 export * from './adverse.js';
 export * from './learning.js';
+export * from './safety.js';
+export * from './regulatory.js';
+export * from './adr.js';
+export * from './reports.js';

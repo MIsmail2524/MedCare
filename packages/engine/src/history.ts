@@ -67,6 +67,17 @@ export function coursesToRegimens(patient: Patient, origin: Date, until: Date): 
   return regs;
 }
 
+/** Regimens for courses overlapping [origin, until]; doses before `origin` are dropped. */
+export function windowRegimens(patient: Patient, origin: Date, until: Date): Regimen[] {
+  return coursesToRegimens(patient, origin, until)
+    .map((r) => {
+      if (r.startH >= 0) return r;
+      const skip = Math.ceil(-r.startH / r.intervalH);
+      return { ...r, startH: r.startH + skip * r.intervalH, doses: r.doses - skip };
+    })
+    .filter((r) => r.doses > 0);
+}
+
 /**
  * Retrospective analysis: what effects have past medicines and procedures already had on the twin?
  * Reconstructs drug exposure from the medication history up to `now`, giving residual levels,
@@ -134,12 +145,8 @@ export function analyzeHistory(patient: Patient, now: Date = new Date()): Histor
   if (starts.length) {
     const origin = new Date(Math.max(Math.min(...starts), yearAgo));
     windowStart = origin.toISOString();
-    const regs = coursesToRegimens(patient, origin, now).map((r) => {
-      if (r.startH >= 0) return r;
-      // course started before the window: keep only doses inside it
-      const skip = Math.ceil(-r.startH / r.intervalH);
-      return { ...r, startH: r.startH + skip * r.intervalH, doses: r.doses - skip };
-    }).filter((r) => r.doses > 0);
+    // courses that started before the window keep only the doses inside it
+    const regs = windowRegimens(patient, origin, now);
     const durationH = (now.getTime() - origin.getTime()) / HOUR;
     if (regs.length && durationH > 0) {
       timeline = simulate({ patient, physiology: phys, regimens: regs, durationH, at: now });

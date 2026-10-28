@@ -1150,3 +1150,9 @@ export function getDrug(id: string): Drug {
 }
 
 export const DRUG_CATEGORIES = Array.from(new Set(DRUGS.map((d) => d.category))).sort();
+
+/** Register a user-defined (e.g. investigational) drug so the simulator can use it. */
+export function registerDrug(d: Drug): void {
+  if (!/^cand:[a-z0-9_-]{1,40}$/.test(d.id)) throw new Error('Candidate drug ids must look like cand:<slug>');
+  DRUG_MAP[d.id] = d;
+}

@@ -24,7 +24,8 @@ export function createApp(db: DB, opts: { staticDir?: string } = {}) {
         useDefaults: false,
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'"],
+          // 'wasm-unsafe-eval' allows WebAssembly compilation only (RDKit structure engine); no JS eval.
+          scriptSrc: ["'self'", "'wasm-unsafe-eval'"],
           styleSrc: ["'self'", "'unsafe-inline'"],
           imgSrc: ["'self'", 'data:', 'blob:'],
           fontSrc: ["'self'", 'data:'],
@@ -90,11 +91,21 @@ export function createApp(db: DB, opts: { staticDir?: string } = {}) {
       express.static(staticDir, {
         index: false,
         setHeaders(res, file) {
-          res.setHeader('Cache-Control', /\/assets\//.test(file) ? 'public, max-age=31536000, immutable' : /\/models\//.test(file) ? 'public, max-age=86400' : 'no-cache');
+          res.setHeader('Cache-Control', /\/assets\//.test(file) ? 'public, max-age=31536000, immutable' : /\/(models|data)\//.test(file) ? 'public, max-age=3600' : 'no-cache');
+          if (file.endsWith('.wasm')) res.setHeader('Content-Type', 'application/wasm');
+          // The RDKit worker (and only it) may generate code: Emscripten embind uses new Function().
+          // Dedicated workers take their CSP from their own script response, so the page keeps the strict policy.
+          if (/\/assets\/rdkit\.worker-[\w-]+\.js$/.test(file)) {
+            res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; connect-src 'self'");
+          }
           if (file.endsWith('.glb')) res.setHeader('Content-Type', 'model/gltf-binary');
         },
       }),
     );
+    // Missing hashed assets must 404 (not fall back to index.html) so stale chunks fail loudly.
+    app.get(/^\/(assets|vendor|models|data)\//, (_req, res) => {
+      res.status(404).type('text/plain').send('Not found');
+    });
     app.get(/^(?!\/api).*/, (_req, res) => {
       res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(staticDir, 'index.html'));

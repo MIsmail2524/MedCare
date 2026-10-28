@@ -20,7 +20,9 @@
     "test": "npm run test -w packages/engine && npm run test -w server",
     "typecheck": "npm run typecheck -w packages/engine && npm run typecheck -w server && npm run typecheck -w web",
     "seed": "npm run seed -w server",
-    "build:anatomy": "node tools/build-anatomy.mjs"
+    "build:anatomy": "node tools/build-anatomy.mjs",
+    "data:collect": "node tools/collect-datasets.mjs data/drug-safety.json",
+    "data:kb": "npm run build -w packages/engine && node tools/build-safety-kb.mjs data/drug-safety.json web/public/data/safety-kb.json"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.5.1",

@@ -373,3 +373,26 @@ describe('learning from outcomes', () => {
     if (prevTok) process.env.ANTHROPIC_AUTH_TOKEN = prevTok;
   });
 });
+
+describe('static assets & scoped CSP', () => {
+  it('serves the RDKit worker with a worker-only CSP and 404s missing assets', async () => {
+    const fs = await import('node:fs');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-static-'));
+    fs.mkdirSync(path.join(dir, 'assets'));
+    fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><title>x</title>');
+    fs.writeFileSync(path.join(dir, 'assets', 'rdkit.worker-abc123.js'), 'self.onmessage=()=>{}');
+    fs.writeFileSync(path.join(dir, 'assets', 'app-abc123.js'), 'console.log(1)');
+    const sapp = createApp(db, { staticDir: dir });
+    const w = await request(sapp).get('/assets/rdkit.worker-abc123.js');
+    expect(w.headers['content-security-policy']).toContain("'unsafe-eval'");
+    expect(w.headers['content-security-policy']).toContain("default-src 'none'");
+    const a = await request(sapp).get('/assets/app-abc123.js');
+    expect(a.headers['content-security-policy']).not.toContain("'unsafe-eval'");
+    expect((await request(sapp).get('/assets/missing.js')).status).toBe(404);
+    const page = await request(sapp).get('/app/regulatory');
+    expect(page.status).toBe(200);
+    expect(page.headers['content-security-policy']).not.toContain("'unsafe-eval'");
+  });
+});

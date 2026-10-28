@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Activity, Beaker, BrainCircuit, Dna, FlaskConical, GraduationCap, HeartPulse, History, Lock, Network, Sigma, Syringe, Users, ArrowRight, CheckCircle2,
+  Activity, Beaker, BrainCircuit, Dna, Landmark, FlaskConical, GraduationCap, HeartPulse, History, Lock, Network, Sigma, Syringe, Users, ArrowRight, CheckCircle2,
 } from 'lucide-react';
 import { DRUGS, defaultPatient, makeRegimen, simulate } from '@medcare/engine';
 import { useAuth } from '../lib/auth';
@@ -9,6 +9,7 @@ import { TimeChart } from '../components/charts';
 import { fmt } from '../lib/format';
 
 const FEATURES = [
+  { icon: Landmark, title: 'Regulatory twin', body: 'Organ-liability predictions learned from FDA labels and FAERS, combined with simulated exposure in special populations, produce a draft label and evidence gaps for new or approved medicines.' },
   { icon: HeartPulse, title: '3D body digital twin', body: 'Give a medicine and watch it travel through a holographic human body — absorption, first-pass, circulation, tissues, metabolism, excretion — with organs lighting up and side effects appearing where they happen.' },
   { icon: BrainCircuit, title: 'Learns from every patient', body: 'Recorded real outcomes refine pharmacokinetic priors and organ side-effect models, and reinforce a reinforcement-learning dosing agent for future patients.' },
   { icon: Users, title: 'Patient digital twins', body: 'Age, size, renal & hepatic function, pregnancy, genotype (CYP2D6/2C19/2C9/3A5, VKORC1, HLA), conditions and allergies — all feeding validated physiological equations.' },

@@ -9,4 +9,6 @@ coverage/
 .DS_Store
 *.log
 .claude/
-data/
+/data/*.db*
+/data/*.partial.json
+web/public/vendor/
