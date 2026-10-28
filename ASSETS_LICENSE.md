@@ -22,3 +22,7 @@ Attribution as requested by the licensor:
 - openFDA drug labeling and FAERS (U.S. Food and Drug Administration): public domain (https://open.fda.gov/license/). FAERS reports are unverified spontaneous reports and do not establish causation.
 - PubChem (NCBI/NLM) compound properties and structures: public domain.
 - Fingerprints computed with RDKit (BSD 3-Clause), bundled as `@rdkit/rdkit`.
+
+## Field datasets (`data/fields.json`, `web/public/data/fields-kb.json`)
+
+- openFDA FAERS age data, drug shortages and FDA CVM animal adverse events: public domain (https://open.fda.gov/license/). Reports are unverified and do not establish causation.

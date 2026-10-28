@@ -116,6 +116,27 @@ export const PROCEDURE_MAP: Record<string, ProcedureDef> = Object.assign(Object.
 
 const CHILD_PUGH_FACTOR = { none: 1, A: 0.8, B: 0.55, C: 0.35 } as const;
 
+/**
+ * Developmental (ontogeny) fraction of adult enzyme activity by postnatal age, as sigmoid
+ * maturation curves f = f₀ + (1 − f₀)·Aʰ/(A50ʰ + Aʰ) (A in years), approximating published
+ * paediatric PBPK ontogeny profiles (Salem 2014; Upreti & Wahlstrom 2016).
+ */
+export const ONTOGENY: Record<string, { f0: number; a50: number; h: number }> = {
+  CYP3A4: { f0: 0.11, a50: 0.3, h: 1.0 },
+  CYP2D6: { f0: 0.1, a50: 0.12, h: 1.2 },
+  CYP2C9: { f0: 0.2, a50: 0.35, h: 1.1 },
+  CYP2C19: { f0: 0.3, a50: 0.3, h: 1.0 },
+  CYP1A2: { f0: 0.05, a50: 0.6, h: 1.6 },
+  CYP2B6: { f0: 0.2, a50: 0.5, h: 1.0 },
+  CYP2E1: { f0: 0.1, a50: 0.4, h: 1.2 },
+  UGT: { f0: 0.1, a50: 0.8, h: 1.6 },
+  Pgp: { f0: 0.3, a50: 0.5, h: 1.0 },
+};
+export function ontogenyFactors(ageYears: number): Record<string, number> {
+  const a = Math.max(ageYears, 0.001);
+  return Object.fromEntries(Object.entries(ONTOGENY).map(([k, o]) => [k, o.f0 + ((1 - o.f0) * a ** o.h) / (o.a50 ** o.h + a ** o.h)]));
+}
+
 export function idealBodyWeight(sex: Patient['sex'], heightCm: number): number {
   const base = sex === 'male' ? 50 : 45.5;
   return Math.max(base + 0.9055 * (heightCm - 152.4), 0.5 * base);
@@ -209,6 +230,10 @@ export function derivePhysiology(p: Patient, at: Date = new Date()): Physiology 
     UGT: 1,
     Pgp: 1,
   };
+  if (p.age < 18) {
+    for (const [pw, f] of Object.entries(ontogenyFactors(p.age)) as [Pathway, number][]) enzymeActivity[pw] *= f;
+    if (p.age < 2) notes.push(`Infant enzyme ontogeny: CYP3A4 ${(ontogenyFactors(p.age).CYP3A4 * 100).toFixed(0)}%, UGT ${(ontogenyFactors(p.age).UGT * 100).toFixed(0)}% of adult activity.`);
+  }
   if (p.smoker) {
     enzymeActivity.CYP1A2 *= 1.7;
     notes.push('Smoking induces CYP1A2 (~1.7×): theophylline, clozapine, olanzapine clearance ↑.');

@@ -57,6 +57,27 @@ Limitations: FAERS is spontaneous and confounded, label-derived ground truth is 
 
 Refresh the data with `npm run data:collect` (set `OPENFDA_API_KEY` for higher limits) and `npm run data:kb`.
 
+## Twin lab: one twin, twelve fields
+
+`/app/lab` applies the same mechanistic engine to fields where exposure modelling is rarely linked to outcomes:
+
+| Field | Model |
+| --- | --- |
+| Paediatrics | Growth curves, renal maturation and CYP/UGT enzyme ontogeny; mg/kg dose that matches adult exposure at each age |
+| Antimicrobial resistance | Target attainment and cumulative fraction of response over MIC distributions; mutant-selection-window two-population dynamics |
+| Oncology | Friberg neutropenia + Simeoni tumour growth/kill over a virtual population; schedule comparison by response and grade-4 neutropenia |
+| Older adults | Anticholinergic, sedative, fall-risk, interaction and organ burden with greedy deprescribing; FAERS age-band signals with a kNN age-risk model (leave-one-out Spearman ρ) |
+| Dialysis & ICU | Intermittent haemodialysis, CRRT, augmented renal clearance and capillary leak |
+| Mental health | PET-calibrated receptor/transporter occupancy and time in the therapeutic window |
+| Diabetes | Bergman minimal model with meals and drug effects on glucose output, secretion and sensitivity |
+| Veterinary | Allometric scaling, species metabolic gaps, withdrawal times; FDA CVM adverse-event summaries |
+| Environmental exposure | Reverse dosimetry from biomonitoring levels (PFAS, lead, methylmercury) to intake and hazard quotient |
+| Extreme environments | Spaceflight, altitude, heat and hypothermia physiology modifiers |
+| Anti-doping | Detection windows and the dose implied by a measured level at a claimed time |
+| Drug shortages | Current FDA shortages with class-matched, safety-ranked alternatives |
+
+Data: `npm run data:fields` collects FAERS age bands, FDA shortages and veterinary events (resumable; set `OPENFDA_API_KEY` to avoid the anonymous daily limit), then `npm run data:fields-kb` builds `web/public/data/fields-kb.json` and validates the age-risk model.
+
 ## Architecture
 
 ```

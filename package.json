@@ -2,7 +2,7 @@
   "name": "medcare",
   "private": true,
   "version": "1.0.0",
-  "description": "MedCare Twin \u2014 physiology-based digital twin for medicine simulation, training and drug development",
+  "description": "MedCare Twin — physiology-based digital twin for medicine simulation, training and drug development",
   "type": "module",
   "workspaces": [
     "packages/engine",
@@ -22,7 +22,9 @@
     "seed": "npm run seed -w server",
     "build:anatomy": "node tools/build-anatomy.mjs",
     "data:collect": "node tools/collect-datasets.mjs data/drug-safety.json",
-    "data:kb": "npm run build -w packages/engine && node tools/build-safety-kb.mjs data/drug-safety.json web/public/data/safety-kb.json"
+    "data:kb": "npm run build -w packages/engine && node tools/build-safety-kb.mjs data/drug-safety.json web/public/data/safety-kb.json",
+    "data:fields": "node tools/collect-fields.mjs data/fields.json",
+    "data:fields-kb": "npm run build -w packages/engine && node tools/build-fields-kb.mjs"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.5.1",
